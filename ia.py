@@ -95,17 +95,61 @@ palavra_contexto = {
 }
 
 assuntos = [
-    "Eu gosto de gatos",
-    "Eu gosto de cachorros",
-    "Eu gosoto de coelhos",
-    "Eu gosto de pizza",
-    "Eu gosto de Minecraft"
+    ("Eu gosto de gatos", "gatos"),
+    ("Eu tenho um gato", "gatos"),
+    ("Eu adoro gatos", "gatos"),
+    ("Meu animal favorito é o gato", "gatos"),
+
+    ("Eu gosto de cachorros", "cachorros"),
+    ("Eu tenho um cachorro", "cachorros"),
+    ("Eu adoro cachorros", "cachorros"),
+    ("Meu animal favorito é o cachorro", "cachorros"),
+
+    ("Eu gosto de coelhos", "coelhos"),
+    ("Eu tenho um coelho", "coelhos"),
+
+    ("Eu gosto de pizza", "pizza"),
+    ("Minha comida favorita é pizza", "pizza"),
+
+    ("Eu gosto de Minecraft", "Minecraft"),
+    ("Eu jogo Minecraft", "Minecraft"),
 ]
 
+respostas_contexto = {
+    "gatos": [
+        "Eu também gosto de gatos!",
+        "Gatos são muito legais!",
+        "Eu acho gatos fascinantes."
+    ],
+
+    "cachorros": [
+        "Cachorros são ótimos companheiros!",
+        "Eu também acho cachorros muito legais!",
+        "Cachorros têm uma energia incrível."
+    ],
+
+    "coelhos": [
+        "Coelhos são muito fofos!",
+        "Eu também acho coelhos adoráveis!"
+    ],
+
+    "pizza": [
+        "Pizza é uma ótima escolha!",
+        "Eu também gosto da ideia de uma boa pizza!"
+    ],
+
+    "Minecraft": [
+        "Minecraft é muito divertido!",
+        "Dá para fazer muita coisa no Minecraft!",
+        "Minecraft tem possibilidades praticamente infinitas."
+    ]
+}
+
+frases_assuntos = [item[0] for item in assuntos]
+embeddings_assuntos = modelo.encode(frases_assuntos)
 embeddings = modelo.encode(frases)
 memoria = {}
 historico = []
-embeddings_assuntos = modelo.encode(assuntos)
 
 #FUNÇÂO CLASSIFICSAR TEXTO
 def classificar_texto(texto):
@@ -129,8 +173,11 @@ def ultima_mensagem_usuario():
     for item in historico:
         if "usuario" in item:
             mensagens.append(item["usuario"])
+            
+    print("Mensagens: ", mensagens)
 
     if len(mensagens) >= 2:
+        print("Anterior", mensagens[-2])
         return mensagens[-2]
     
     return None
@@ -141,7 +188,47 @@ def descobrir_assunto(texto):
     similaridade = cosine_similarity(embeddings, embeddings_assuntos)[0]
     indice = similaridade.argmax()
 
-    return assuntos[indice], similaridade[indice]
+    indice = similaridade.argmax()
+    categoria = assuntos[indice][1]
+
+    return categoria, similaridade[indice]
+
+
+def executar_acao(acao):
+    if acao == "mostrar_memoria":
+        if memoria:
+            return f"Estas são as informações que eu lembro: {memoria}"
+        else:
+            return "Eu não tenho informações salvas."
+
+    elif acao == "apagar_memoria":
+        if memoria:
+            chave = input("Qual informação deseja apagar? ").lower().strip()
+
+            if chave in memoria:
+                del memoria[chave]
+                salvar_memoria()
+                return f"Informação '{chave}' foi apagada!"
+            else:
+                return "Não encontrei essa informação."
+        else:
+            return "Eu não tenho informações salvas."
+
+    return "Não conheço essa ação."
+
+
+acoes = {
+    "mostrar_memoria": executar_acao,
+    "apagar_memoria": executar_acao
+}
+
+def chamar_acao(nome_acao):
+    funcao = acoes.get(nome_acao)
+
+    if funcao is None:
+        return "Não conheço essa ação."
+
+    return funcao(nome_acao)
 
 #ARQUIVO JSON
 def salvar_memoria():
@@ -154,6 +241,19 @@ def salvar_memoria():
 while True:
 
     texto = input("Você: ")
+
+    if "o que você lembra de mim?" in texto.lower():
+        resposta = chamar_acao("mostrar_memoria")
+
+        print(f"IA: {resposta}")
+        historico_resposta(resposta)
+        continue
+
+    if "apagar informação da memória" in texto.lower():
+        resposta = chamar_acao("apagar_memoria")
+        print(f"IA: {resposta}")
+        historico_resposta(resposta)
+        continue
 
     historico.append({
         "usuario": texto
@@ -233,20 +333,24 @@ while True:
     if any(palavra in texto.lower() for palavra in palavra_contexto):
         anterior = ultima_mensagem_usuario()
 
-        assunto, confianca = descobrir_assunto(texto)
-
-        print("Assunto: ", assunto)
-        print("Confiança: ", round(confianca, 2))
 
         if anterior:
-            if "gato" in anterior.lower():
-                print("IA: Eu também gosto de gatos!")
-            elif "cachorro" in anterior.lower():
-                print("IA: Cachorros são ótimos companheiros!")
-            else:
-                print(f"IA: Entendi! Você estava falando sobre isso {anterior}.")
+            assunto, confianca = descobrir_assunto(anterior)
+            print("Assunto: ", assunto)
+            print("Confiança: ", confianca)
 
-            continue
+            if confianca < 0.55:
+                print("IA: Não consegui entender qual é o assunto.")
+
+            else:
+                if assunto in respostas_contexto:
+                    resposta = random.choice(respostas_contexto[assunto])
+                    print(f"IA: {resposta}")
+                    historico_resposta(resposta)
+                else:
+                    print(f"IA: Entendi! Você estva falando sobre {assunto}.")  
+
+                continue
 
     if confianca < 0.60:
         print("IA: Não entendi muito bem.")
