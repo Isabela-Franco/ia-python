@@ -230,6 +230,34 @@ def chamar_acao(nome_acao):
 
     return funcao(nome_acao)
 
+
+
+def identificar_acao(texto):
+    texto = texto.lower().strip()
+
+    if any(frase in texto for frase in [
+        "o que você lembra de mim",
+        "o que voce lembra de mim",
+        "quais informações você guardou",
+        "quais informacoes voce guardou",
+        "me diga o que sabe sobre mim"
+    ]):
+        return "mostrar_memoria"
+
+    verbos_apagar = [
+        "apagar", "apague", "apaga",
+        "esquecer", "esqueça", "esqueca",
+        "remover", "remova",
+        "excluir", "exclua"
+    ]
+
+    if any(verbo in texto for verbo in verbos_apagar):
+        if "memória" in texto or "memoria" in texto or "informação" in texto or "informacao" in texto:
+            return "apagar_memoria"
+
+    return None
+
+
 #ARQUIVO JSON
 def salvar_memoria():
     with open("memoria.json", "w", encoding="utf-8") as arquivo:
@@ -242,15 +270,10 @@ while True:
 
     texto = input("Você: ")
 
-    if "o que você lembra de mim?" in texto.lower():
-        resposta = chamar_acao("mostrar_memoria")
+    nome_acao = identificar_acao(texto)
 
-        print(f"IA: {resposta}")
-        historico_resposta(resposta)
-        continue
-
-    if "apagar informação da memória" in texto.lower():
-        resposta = chamar_acao("apagar_memoria")
+    if nome_acao:
+        resposta = chamar_acao(nome_acao)
         print(f"IA: {resposta}")
         historico_resposta(resposta)
         continue
